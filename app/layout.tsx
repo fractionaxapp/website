@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { ReactNode } from "react"
+import { cn } from "@/lib/utils"
 
 import "./globals.css";
 
@@ -16,7 +17,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={`h-full antialiased`}
+			className={cn("h-full", "antialiased", "font-sans")}
 		>
 			<body className="min-h-full flex flex-col">
 				{children}
