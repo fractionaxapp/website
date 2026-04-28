@@ -3,6 +3,7 @@ import { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 import "./globals.css";
+import { ThemeProvider } from "@/components/modules/theme/provider";
 
 export const metadata: Metadata = {
 	title: "Fractionax",
@@ -18,9 +19,18 @@ export default function RootLayout({
 		<html
 			lang="en"
 			className={cn("h-full", "antialiased", "font-sans")}
+			suppressHydrationWarning
 		>
+        	<head />
 			<body className="min-h-full flex flex-col">
-				{children}
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					{children}
+				</ThemeProvider>
 			</body>
 		</html>
 	)
