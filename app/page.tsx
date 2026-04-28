@@ -1,4 +1,4 @@
-import ButtonTheme from "@/components/modules/button/theme";
+import ButtonTheme from "@/components/modules/button/theme"
 
 export default function Page() {
 	return (
