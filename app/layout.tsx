@@ -1,15 +1,29 @@
 import type { Metadata } from "next"
 import { ReactNode } from "react"
+import { Geist, Geist_Mono } from "next/font/google"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/modules/theme/provider"
 
 import Script from "next/script"
 
-import "./globals.css";
+import "./globals.css"
+
+const geistSans = Geist({
+	subsets: ["latin"],
+	variable: "--font-sans",
+	display: "swap",
+})
+
+const geistMono = Geist_Mono({
+	subsets: ["latin"],
+	variable: "--font-mono",
+	display: "swap",
+})
 
 export const metadata: Metadata = {
-	title: "Fractionax",
-	description: "Agentic RWA Investment Infrastructure"
+	title: "Fractionax — Real-world wealth, on autopilot",
+	description:
+		"Set a goal. Your AI invests in real estate, private credit, and yield-bearing assets — and keeps your portfolio working 24/7. Built on Solana.",
 }
 
 export default function RootLayout({
@@ -22,14 +36,14 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={cn("h-full", "antialiased", "font-sans")}
+			className={cn("h-full", geistSans.variable, geistMono.variable)}
 			suppressHydrationWarning
 		>
-        	<head />
-			<body className="min-h-full flex flex-col">
+			<head />
+			<body className={cn("min-h-full flex flex-col antialiased font-sans bg-background text-foreground")}>
 				<ThemeProvider
 					attribute="class"
-					defaultTheme="system"
+					defaultTheme="dark"
 					enableSystem
 					disableTransitionOnChange
 				>
