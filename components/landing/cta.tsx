@@ -1,12 +1,44 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Loader2 } from "lucide-react"
 import { useState } from "react"
+
+type Status = "idle" | "submitting" | "success" | "error"
 
 export function Cta() {
 	const [email, setEmail] = useState("")
-	const [submitted, setSubmitted] = useState(false)
+	const [status, setStatus] = useState<Status>("idle")
+	const [error, setError] = useState<string | null>(null)
+	const [alreadySubscribed, setAlreadySubscribed] = useState(false)
+
+	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+		e.preventDefault()
+		if (!email || status === "submitting") return
+		setStatus("submitting")
+		setError(null)
+		try {
+			const res = await fetch("/api/waitlist", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email, source: "cta-section" }),
+			})
+			const data = await res.json().catch(() => ({}))
+			if (!res.ok || !data.ok) {
+				setError(typeof data?.error === "string" ? data.error : "Something went wrong. Please try again.")
+				setStatus("error")
+				return
+			}
+			setAlreadySubscribed(Boolean(data.alreadySubscribed))
+			setStatus("success")
+		} catch {
+			setError("Network error. Please try again.")
+			setStatus("error")
+		}
+	}
+
+	const submitted = status === "success"
+	const submitting = status === "submitting"
 
 	return (
 		<section id="waitlist" className="relative py-24 lg:py-40 overflow-hidden">
@@ -56,16 +88,20 @@ export function Cta() {
 					whileInView={{ opacity: 1, y: 0 }}
 					viewport={{ once: true, margin: "-80px" }}
 					transition={{ duration: 0.7, delay: 0.25, ease: "easeOut" }}
-					onSubmit={(e) => {
-						e.preventDefault()
-						if (!email) return
-						setSubmitted(true)
-					}}
+					onSubmit={handleSubmit}
 					className="mt-10 mx-auto max-w-md"
 				>
 					{submitted ? (
 						<div className="rounded-full border border-primary/40 bg-primary/10 px-5 py-3 text-sm text-balance">
-							You're in. We'll email <span className="font-medium">{email}</span> when your spot is ready.
+							{alreadySubscribed ? (
+								<>
+									You're already on the list. We'll email <span className="font-medium">{email}</span> when your spot is ready.
+								</>
+							) : (
+								<>
+									You're in. We'll email <span className="font-medium">{email}</span> when your spot is ready.
+								</>
+							)}
 						</div>
 					) : (
 						<div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/50 backdrop-blur p-1.5">
@@ -75,18 +111,27 @@ export function Cta() {
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								placeholder="you@example.com"
-								className="flex-1 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-muted-foreground"
+								disabled={submitting}
+								className="flex-1 bg-transparent px-4 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
 							/>
 							<button
 								type="submit"
-								className="group inline-flex items-center gap-1.5 rounded-full bg-foreground text-background pl-4 pr-2 h-9 text-sm font-medium hover:opacity-90 transition-opacity"
+								disabled={submitting}
+								className="group inline-flex items-center gap-1.5 rounded-full bg-foreground text-background pl-4 pr-2 h-9 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
 							>
-								Get early access
+								{submitting ? "Joining…" : "Get early access"}
 								<span className="inline-flex size-6 items-center justify-center rounded-full bg-background/15">
-									<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+									{submitting ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+									)}
 								</span>
 							</button>
 						</div>
+					)}
+					{status === "error" && error && (
+						<div className="mt-3 text-xs text-destructive">{error}</div>
 					)}
 					<div className="mt-4 text-xs text-muted-foreground">
 						No spam. Unsubscribe in one click. Capital at risk.
