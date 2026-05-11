@@ -1,4 +1,13 @@
+import Image from "next/image"
 import { cn } from "@/lib/utils"
+
+const LOGO_ASPECT = 1648 / 345.67
+
+const sizeHeight = {
+	sm: 16,
+	md: 22,
+	lg: 30,
+} as const
 
 export function Wordmark({
 	className,
@@ -7,24 +16,28 @@ export function Wordmark({
 	className?: string
 	size?: "sm" | "md" | "lg"
 }) {
-	const sizes = {
-		sm: "text-base",
-		md: "text-xl",
-		lg: "text-2xl",
-	}
+	const height = sizeHeight[size]
+	const width = Math.round(height * LOGO_ASPECT)
+
 	return (
-		<span
-			className={cn(
-				"font-display font-medium tracking-tight inline-flex items-baseline gap-[0.18em]",
-				sizes[size],
-				className,
-			)}
-		>
-			<span aria-hidden className="relative inline-block size-[0.55em] translate-y-[0.05em]">
-				<span className="absolute inset-0 rounded-full bg-primary" />
-				<span className="absolute inset-0 rounded-full bg-primary blur-[6px] opacity-70" />
-			</span>
-			<span>Fractionax</span>
+		<span className={cn("inline-flex items-center", className)}>
+			<Image
+				src="/assets/logo/FractionaxDark.svg"
+				alt="Fractionax"
+				width={width}
+				height={height}
+				priority
+				className="block dark:hidden"
+			/>
+			<Image
+				src="/assets/logo/FractionaxLight.svg"
+				alt="Fractionax"
+				width={width}
+				height={height}
+				priority
+				aria-hidden
+				className="hidden dark:block"
+			/>
 		</span>
 	)
 }

@@ -1,3 +1,4 @@
+import Image from "next/image"
 import { Wordmark } from "./wordmark"
 
 const COLS = [
@@ -79,11 +80,21 @@ export function Footer() {
 					</div>
 				</div>
 
-				<div
-					aria-hidden
-					className="mt-20 lg:mt-28 select-none font-display font-medium leading-none tracking-[-0.05em] text-[clamp(4rem,18vw,18rem)] text-foreground/[0.06]"
-				>
-					FRACTIONAX
+				<div aria-hidden className="mt-20 lg:mt-28 select-none pointer-events-none">
+					<Image
+						src="/assets/logo/FractionaxDark.svg"
+						alt=""
+						width={1648}
+						height={346}
+						className="block dark:hidden w-full h-auto opacity-[0.06]"
+					/>
+					<Image
+						src="/assets/logo/FractionaxLight.svg"
+						alt=""
+						width={1648}
+						height={346}
+						className="hidden dark:block w-full h-auto opacity-[0.06]"
+					/>
 				</div>
 
 				<div className="mt-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between text-xs text-muted-foreground">
