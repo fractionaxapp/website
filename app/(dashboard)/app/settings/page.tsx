@@ -1,10 +1,11 @@
 "use client"
 
-import { Bell, Globe, Lock, Shield, User as UserIcon } from "lucide-react"
+import { Bell, Check, Globe, Loader2, Lock, Save, Shield, User as UserIcon } from "lucide-react"
 import { useState } from "react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, DataRow, SectionHeader, StatusPill } from "@/components/dashboard/primitives"
 import { useDashboardUser } from "@/components/dashboard/gate"
+import { useApi } from "@/lib/api/client"
 
 const SECTIONS = [
 	{ id: "profile", label: "Profile", icon: UserIcon },
@@ -18,7 +19,31 @@ type SectionId = typeof SECTIONS[number]["id"]
 
 export default function SettingsPage() {
 	const user = useDashboardUser()
+	const { fetcher } = useApi()
 	const [section, setSection] = useState<SectionId>("profile")
+	const [displayName, setDisplayName] = useState(user.displayName ?? "")
+	const [savingProfile, setSavingProfile] = useState(false)
+	const [profileSaved, setProfileSaved] = useState(false)
+	const [profileError, setProfileError] = useState<string | null>(null)
+
+	async function saveProfile() {
+		setProfileError(null)
+		setSavingProfile(true)
+		try {
+			const res = await fetcher("/api/me/profile", {
+				method: "PATCH",
+				body: JSON.stringify({ displayName: displayName.trim() || null }),
+			})
+			const json = await res.json()
+			if (!res.ok || !json.ok) throw new Error(json?.error ?? "Failed")
+			setProfileSaved(true)
+			setTimeout(() => setProfileSaved(false), 2000)
+		} catch (e) {
+			setProfileError((e as Error).message)
+		} finally {
+			setSavingProfile(false)
+		}
+	}
 
 	return (
 		<div className="px-4 lg:px-8 py-6 lg:py-10 space-y-6">
@@ -48,13 +73,41 @@ export default function SettingsPage() {
 				<div className="space-y-4">
 					{section === "profile" && (
 						<Card>
-							<SectionHeader title="Profile" description="How others see you on Fractionax" />
+							<SectionHeader
+								title="Profile"
+								description="How others see you on Fractionax"
+								action={
+									<div className="flex items-center gap-2">
+										{profileSaved && (
+											<span className="inline-flex items-center gap-1 text-xs text-primary">
+												<Check className="size-3" /> Saved
+											</span>
+										)}
+										<button
+											onClick={saveProfile}
+											disabled={savingProfile || displayName === (user.displayName ?? "")}
+											className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 disabled:opacity-60"
+										>
+											{savingProfile ? <><Loader2 className="size-3 animate-spin" /> Saving…</> : <><Save className="size-3" /> Save</>}
+										</button>
+									</div>
+								}
+							/>
 							<div className="grid sm:grid-cols-2 gap-4">
-								<Field label="Display name" value={user.displayName ?? "—"} />
+								<label className="flex flex-col gap-1.5">
+									<span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">Display name</span>
+									<input
+										value={displayName}
+										onChange={(e) => setDisplayName(e.target.value)}
+										placeholder="Your name"
+										className="h-9 px-3 text-sm bg-card/60 border border-border/40 rounded-md outline-none focus:border-foreground/30"
+									/>
+								</label>
 								<Field label="Email" value={user.email ?? "—"} />
 								<Field label="Wallet" value={user.walletAddress ?? "—"} mono />
 								<Field label="Member since" value={new Date(user.createdAt).toLocaleDateString()} />
 							</div>
+							{profileError && <div className="mt-3 text-xs text-destructive">{profileError}</div>}
 						</Card>
 					)}
 

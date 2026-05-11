@@ -1,10 +1,11 @@
 "use client"
 
-import { Building2, CreditCard, Lock, Shield, Users } from "lucide-react"
+import { Building2, Check, CreditCard, Loader2, Lock, Save, Shield, Users } from "lucide-react"
 import { useState } from "react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, DataRow, SectionHeader, StatusPill } from "@/components/dashboard/primitives"
 import { useDashboardUser } from "@/components/dashboard/gate"
+import { useApi } from "@/lib/api/client"
 
 const SECTIONS = [
 	{ id: "org", label: "Organization", icon: Building2 },
@@ -18,7 +19,31 @@ type SectionId = typeof SECTIONS[number]["id"]
 
 export default function OwnerSettingsPage() {
 	const user = useDashboardUser()
+	const { fetcher } = useApi()
 	const [section, setSection] = useState<SectionId>("org")
+	const [displayName, setDisplayName] = useState(user.displayName ?? "")
+	const [saving, setSaving] = useState(false)
+	const [saved, setSaved] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	async function save() {
+		setError(null)
+		setSaving(true)
+		try {
+			const res = await fetcher("/api/me/profile", {
+				method: "PATCH",
+				body: JSON.stringify({ displayName: displayName.trim() || null }),
+			})
+			const json = await res.json()
+			if (!res.ok || !json.ok) throw new Error(json?.error ?? "Failed")
+			setSaved(true)
+			setTimeout(() => setSaved(false), 2000)
+		} catch (e) {
+			setError((e as Error).message)
+		} finally {
+			setSaving(false)
+		}
+	}
 
 	return (
 		<div className="px-4 lg:px-8 py-6 lg:py-10 space-y-6">
@@ -46,15 +71,40 @@ export default function OwnerSettingsPage() {
 				<div className="space-y-4">
 					{section === "org" && (
 						<Card>
-							<SectionHeader title="Organization" />
+							<SectionHeader
+								title="Organization"
+								action={
+									<div className="flex items-center gap-2">
+										{saved && (
+											<span className="inline-flex items-center gap-1 text-xs text-primary">
+												<Check className="size-3" /> Saved
+											</span>
+										)}
+										<button
+											onClick={save}
+											disabled={saving || displayName === (user.displayName ?? "")}
+											className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 disabled:opacity-60"
+										>
+											{saving ? <><Loader2 className="size-3 animate-spin" /> Saving…</> : <><Save className="size-3" /> Save</>}
+										</button>
+									</div>
+								}
+							/>
 							<div className="grid sm:grid-cols-2 gap-4">
-								<Field label="Legal name" value="KL Capital Pte. Ltd." />
-								<Field label="Trading name" value="KL Capital" />
+								<label className="flex flex-col gap-1.5">
+									<span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">Organization name</span>
+									<input
+										value={displayName}
+										onChange={(e) => setDisplayName(e.target.value)}
+										placeholder="Your operating company"
+										className="h-9 px-3 text-sm bg-card/60 border border-border/40 rounded-md outline-none focus:border-foreground/30"
+									/>
+								</label>
 								<Field label="Jurisdiction" value="Singapore" />
-								<Field label="Registration #" value="202418729K" mono />
 								<Field label="Primary contact" value={user.email ?? "—"} />
 								<Field label="Treasury wallet" value={user.walletAddress ?? "—"} mono />
 							</div>
+							{error && <div className="mt-3 text-xs text-destructive">{error}</div>}
 						</Card>
 					)}
 

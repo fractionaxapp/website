@@ -2,6 +2,7 @@
 
 import { Loader2, Plus, Search } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, EmptyState, MetricCard, StatusPill } from "@/components/dashboard/primitives"
@@ -35,6 +36,7 @@ const STATUS_TONE: Record<OwnerAsset["status"], "success" | "info" | "warning" |
 const TABS = ["All", "Live", "Fundraising", "In review", "Draft", "Closed"] as const
 
 export default function OwnerAssetsPage() {
+	const router = useRouter()
 	const { data, loading } = useFetch<{ ok: true; assets: OwnerAsset[] }>("/api/owner/assets")
 	const [tab, setTab] = useState<typeof TABS[number]>("All")
 	const [query, setQuery] = useState("")
@@ -135,7 +137,11 @@ export default function OwnerAssetsPage() {
 									const raised = Number(a.currentRaised)
 									const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0
 									return (
-										<tr key={a.id} className="border-t border-border/30 hover:bg-foreground/[0.02]">
+										<tr
+											key={a.id}
+											onClick={() => router.push(`/owner/assets/${a.slug}`)}
+											className="border-t border-border/30 hover:bg-foreground/[0.02] cursor-pointer"
+										>
 											<td className="px-4 py-3.5">
 												<div className="text-xs font-medium">{a.name}</div>
 												<div className="text-[10px] text-muted-foreground mt-0.5">{a.category} · {a.region ?? "—"}</div>

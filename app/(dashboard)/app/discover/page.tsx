@@ -1,6 +1,7 @@
 "use client"
 
 import { ArrowRight, Filter, Loader2, MapPin, Search, TrendingUp } from "lucide-react"
+import Link from "next/link"
 import { useMemo, useState } from "react"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, EmptyState, StatusPill } from "@/components/dashboard/primitives"
@@ -141,12 +142,18 @@ export default function DiscoverPage() {
 									{target > 0 && <span>of {fmtUsdShort(target)}</span>}
 								</div>
 								<div className="mt-4 flex items-center gap-2">
-									<button className="flex-1 h-9 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 inline-flex items-center justify-center gap-1.5">
+									<Link
+										href={`/app/discover/${a.slug}`}
+										className="flex-1 h-9 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 inline-flex items-center justify-center gap-1.5"
+									>
 										Invest <ArrowRight className="size-3.5" />
-									</button>
-									<button className="h-9 px-3 rounded-md border border-border/60 text-xs font-medium hover:bg-card/60">
+									</Link>
+									<Link
+										href={`/app/discover/${a.slug}`}
+										className="h-9 px-3 rounded-md border border-border/60 text-xs font-medium hover:bg-card/60 inline-flex items-center"
+									>
 										Details
-									</button>
+									</Link>
 								</div>
 							</Card>
 						)
