@@ -11,6 +11,7 @@ import {
 	Package,
 	Settings,
 	Sparkles,
+	Target,
 	Users,
 	Wallet,
 } from "lucide-react"
@@ -20,6 +21,7 @@ export const investorNav: SidebarGroup[] = [
 	{
 		title: "Overview",
 		items: [
+			{ label: "Goal", href: "/app/goal", icon: Target, badge: "AI" },
 			{ label: "Portfolio", href: "/app", icon: LayoutDashboard },
 			{ label: "Holdings", href: "/app/holdings", icon: Briefcase },
 			{ label: "Activity", href: "/app/activity", icon: Activity },
@@ -28,7 +30,7 @@ export const investorNav: SidebarGroup[] = [
 	{
 		title: "Grow",
 		items: [
-			{ label: "Discover", href: "/app/discover", icon: Compass, badge: "New" },
+			{ label: "Discover", href: "/app/discover", icon: Compass },
 			{ label: "Wallet", href: "/app/wallet", icon: Wallet },
 		],
 	},

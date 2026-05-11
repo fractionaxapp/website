@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Plus } from "lucide-react"
+import { ArrowRight, Plus, Sparkles, Target } from "lucide-react"
 import Link from "next/link"
 import { AreaTrend, Donut } from "@/components/dashboard/charts"
 import { PageHeader } from "@/components/dashboard/page-header"
@@ -13,12 +13,14 @@ import {
 } from "@/components/dashboard/primitives"
 import { activity, allocationBreakdown, holdings, performance30d, portfolioTotal } from "@/lib/mock/investor"
 import { useDashboardUser } from "@/components/dashboard/gate"
+import { useActiveGoal } from "@/lib/state/goal"
 
 const fmtUsd = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
 const fmtUsdFull = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export default function PortfolioPage() {
 	const user = useDashboardUser()
+	const goal = useActiveGoal()
 	const greeting = user.displayName?.split(" ")[0] ?? "there"
 
 	return (
@@ -31,12 +33,64 @@ export default function PortfolioPage() {
 						<Link href="/app/wallet" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md border border-border/60 text-xs font-medium hover:bg-card/60">
 							<Plus className="size-3.5" /> Add funds
 						</Link>
-						<Link href="/app/discover" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90">
-							Browse assets <ArrowRight className="size-3.5" />
+						<Link href="/app/goal" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90">
+							<Sparkles className="size-3.5" /> New goal
 						</Link>
 					</>
 				}
 			/>
+
+			{goal ? (
+				<Link
+					href="/app/goal"
+					className="block group relative rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-5 lg:p-6 hover:border-primary/50 transition-colors overflow-hidden"
+				>
+					<div className="absolute -right-6 -top-6 size-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+					<div className="relative flex items-start gap-4">
+						<div className="size-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+							<Target className="size-5" />
+						</div>
+						<div className="min-w-0 flex-1">
+							<div className="flex items-center gap-2">
+								<span className="text-[10px] font-mono uppercase tracking-wider text-primary">Active goal</span>
+								<StatusPill tone="live">running</StatusPill>
+							</div>
+							<div className="mt-1.5 text-base lg:text-lg font-medium">&ldquo;{goal.prompt}&rdquo;</div>
+							<div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-4">
+								<MiniStat label="Deployed" value={fmtUsd(goal.capital)} />
+								<MiniStat label="Blended APY" value={`${goal.apyBlended.toFixed(1)}%`} accent />
+								<MiniStat label="Assets" value={String(goal.allocations.length)} />
+								<MiniStat label="Since" value={new Date(goal.createdAt).toLocaleDateString()} />
+							</div>
+						</div>
+						<ArrowRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
+					</div>
+				</Link>
+			) : (
+				<Link
+					href="/app/goal"
+					className="block group relative rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.06] via-card/40 to-transparent p-6 lg:p-7 hover:border-foreground/30 transition-colors overflow-hidden"
+				>
+					<div className="absolute -right-12 -top-12 size-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+					<div className="relative flex items-center gap-5">
+						<div className="size-12 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+							<Sparkles className="size-6" />
+						</div>
+						<div className="flex-1 min-w-0">
+							<div className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70">Try it</div>
+							<div className="mt-1 font-display text-xl lg:text-2xl font-medium tracking-tight">
+								What do you want your money to do?
+							</div>
+							<div className="mt-1 text-sm text-muted-foreground">
+								Tell your agents in plain English. They&rsquo;ll source, underwrite, execute, and manage — autonomously.
+							</div>
+						</div>
+						<div className="hidden sm:inline-flex items-center gap-1.5 h-10 px-4 rounded-md bg-foreground text-background text-sm font-medium group-hover:opacity-90">
+							Set a goal <ArrowRight className="size-4" />
+						</div>
+					</div>
+				</Link>
+			)}
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
 				<MetricCard label="Portfolio Value" value={fmtUsdFull(portfolioTotal)} change={{ value: "+18.2% YTD", positive: true }} hint="vs. benchmark +6.4%" />
@@ -171,6 +225,15 @@ export default function PortfolioPage() {
 					</div>
 				</div>
 			</Card>
+		</div>
+	)
+}
+
+function MiniStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+	return (
+		<div>
+			<div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60">{label}</div>
+			<div className={`text-sm font-medium tabular-nums mt-0.5 ${accent ? "text-primary" : ""}`}>{value}</div>
 		</div>
 	)
 }
