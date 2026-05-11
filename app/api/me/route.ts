@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
-import { getPrivyUser, verifyPrivyToken } from "@/lib/auth/privy"
+import { getPrivyUser, isLikelyEthereumAddress, pickSolanaAddress, verifyPrivyToken } from "@/lib/auth/privy"
 
 export const runtime = "nodejs"
 
@@ -31,7 +31,27 @@ export async function GET(request: Request) {
 	const existing = await db.select().from(users).where(eq(users.privyId, privyId)).limit(1)
 
 	if (existing.length > 0) {
-		return Response.json({ ok: true, user: existing[0] })
+		const stored = existing[0]
+		// Self-heal: if we stored a non-Solana address, replace with the user's
+		// Solana wallet from Privy. If no Solana wallet exists, null it out
+		// rather than show an EVM address on a Solana product.
+		if (isLikelyEthereumAddress(stored.walletAddress)) {
+			try {
+				const privyUser = await getPrivyUser(privyId)
+				const solanaAddr = pickSolanaAddress(privyUser)
+				if (solanaAddr !== stored.walletAddress) {
+					const [updated] = await db
+						.update(users)
+						.set({ walletAddress: solanaAddr, updatedAt: new Date() })
+						.where(eq(users.privyId, privyId))
+						.returning()
+					return Response.json({ ok: true, user: updated })
+				}
+			} catch {
+				// fall through with stored row
+			}
+		}
+		return Response.json({ ok: true, user: stored })
 	}
 
 	let email: string | null = null
@@ -40,8 +60,7 @@ export async function GET(request: Request) {
 	try {
 		const privyUser = await getPrivyUser(privyId)
 		email = privyUser.email?.address ?? privyUser.google?.email ?? null
-		const wallet = privyUser.wallet?.address ?? privyUser.linkedAccounts.find((a) => a.type === "wallet")
-		walletAddress = typeof wallet === "string" ? wallet : (wallet as { address?: string } | undefined)?.address ?? null
+		walletAddress = pickSolanaAddress(privyUser)
 		displayName = privyUser.google?.name ?? null
 	} catch {
 		// continue with nulls
