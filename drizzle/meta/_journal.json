@@ -8,6 +8,13 @@
       "when": 1778468186327,
       "tag": "0000_glossy_fixer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778476404524,
+      "tag": "0001_slippery_archangel",
+      "breakpoints": true
     }
   ]
 }

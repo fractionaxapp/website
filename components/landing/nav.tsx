@@ -1,8 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { ArrowUpRight, Menu, X } from "lucide-react"
+import { useOptionalPrivy } from "@/lib/auth/use-optional-privy"
 import { cn } from "@/lib/utils"
 import { Wordmark } from "./wordmark"
 import ButtonTheme from "@/components/modules/button/theme"
@@ -18,6 +20,17 @@ const links = [
 export function Nav() {
 	const [scrolled, setScrolled] = useState(false)
 	const [open, setOpen] = useState(false)
+	const router = useRouter()
+	const { ready, authenticated, login } = useOptionalPrivy()
+
+	const handleSignIn = () => {
+		if (!ready) return
+		if (authenticated) {
+			router.push("/app")
+		} else {
+			login()
+		}
+	}
 
 	useEffect(() => {
 		const onScroll = () => setScrolled(window.scrollY > 8)
@@ -53,12 +66,13 @@ export function Nav() {
 					</ul>
 
 					<div className="flex items-center gap-2">
-						<a
-							href="#"
+						<button
+							type="button"
+							onClick={handleSignIn}
 							className="hidden sm:inline-flex h-9 items-center px-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
 						>
-							Sign in
-						</a>
+							{authenticated ? "Open app" : "Sign in"}
+						</button>
 						<a
 							href="#waitlist"
 							className="group inline-flex h-9 items-center gap-1.5 rounded-full bg-foreground text-background pl-4 pr-2 text-sm font-medium hover:opacity-90 transition-opacity"

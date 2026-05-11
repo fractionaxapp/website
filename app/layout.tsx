@@ -3,6 +3,7 @@ import { ReactNode } from "react"
 import { Geist, Geist_Mono } from "next/font/google"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/modules/theme/provider"
+import { PrivyAppProvider } from "@/components/modules/privy/provider"
 
 import Script from "next/script"
 
@@ -47,7 +48,7 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					{children}
+					<PrivyAppProvider>{children}</PrivyAppProvider>
 				</ThemeProvider>
 				{gaId && (
 					<Script
