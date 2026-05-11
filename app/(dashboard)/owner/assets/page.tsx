@@ -1,16 +1,30 @@
 "use client"
 
-import { Plus, Search } from "lucide-react"
+import { Loader2, Plus, Search } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { PageHeader } from "@/components/dashboard/page-header"
-import { Card, MetricCard, StatusPill } from "@/components/dashboard/primitives"
-import { ownerAssets, type AssetListing } from "@/lib/mock/owner"
+import { Card, EmptyState, MetricCard, StatusPill } from "@/components/dashboard/primitives"
+import { useFetch } from "@/lib/api/client"
+
+type OwnerAsset = {
+	id: number
+	slug: string
+	name: string
+	category: string
+	region: string | null
+	status: "draft" | "in_review" | "fundraising" | "live" | "closed"
+	targetRaise: string | null
+	currentRaised: string
+	targetApy: string | null
+	tenor: string | null
+	createdAt: string
+}
 
 const fmtUsdShort = (n: number) =>
 	n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n}`
 
-const STATUS_TONE: Record<AssetListing["status"], "success" | "info" | "warning" | "muted"> = {
+const STATUS_TONE: Record<OwnerAsset["status"], "success" | "info" | "warning" | "muted"> = {
 	live: "success",
 	fundraising: "info",
 	in_review: "warning",
@@ -21,10 +35,12 @@ const STATUS_TONE: Record<AssetListing["status"], "success" | "info" | "warning"
 const TABS = ["All", "Live", "Fundraising", "In review", "Draft", "Closed"] as const
 
 export default function OwnerAssetsPage() {
+	const { data, loading } = useFetch<{ ok: true; assets: OwnerAsset[] }>("/api/owner/assets")
 	const [tab, setTab] = useState<typeof TABS[number]>("All")
 	const [query, setQuery] = useState("")
+	const assets = data?.assets ?? []
 
-	const filtered = ownerAssets.filter((a) => {
+	const filtered = assets.filter((a) => {
 		const matchTab =
 			tab === "All" ||
 			(tab === "Live" && a.status === "live") ||
@@ -36,8 +52,8 @@ export default function OwnerAssetsPage() {
 		return matchTab && matchQ
 	})
 
-	const totalRaised = ownerAssets.reduce((s, a) => s + a.raised, 0)
-	const totalTarget = ownerAssets.reduce((s, a) => s + a.target, 0)
+	const totalRaised = assets.reduce((s, a) => s + Number(a.currentRaised), 0)
+	const totalTarget = assets.reduce((s, a) => s + Number(a.targetRaise ?? 0), 0)
 
 	return (
 		<div className="px-4 lg:px-8 py-6 lg:py-10 space-y-6">
@@ -52,10 +68,10 @@ export default function OwnerAssetsPage() {
 			/>
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-				<MetricCard label="Total assets" value={String(ownerAssets.length)} hint={`${ownerAssets.filter((a) => a.status === "live" || a.status === "fundraising").length} active`} />
+				<MetricCard label="Total assets" value={String(assets.length)} hint={`${assets.filter((a) => a.status === "live" || a.status === "fundraising").length} active`} />
 				<MetricCard label="Total raised" value={fmtUsdShort(totalRaised)} hint={`of ${fmtUsdShort(totalTarget)} target`} />
-				<MetricCard label="Avg. target APY" value={`${(ownerAssets.reduce((s, a) => s + a.apyTarget, 0) / ownerAssets.length).toFixed(1)}%`} />
-				<MetricCard label="Investors" value={String(ownerAssets.reduce((s, a) => s + a.investors, 0))} />
+				<MetricCard label="Avg. target APY" value={assets.length > 0 ? `${(assets.reduce((s, a) => s + Number(a.targetApy ?? 0), 0) / assets.length).toFixed(1)}%` : "—"} />
+				<MetricCard label="Active investors" value="—" hint="See Investors page" />
 			</div>
 
 			<Card padding="none">
@@ -86,47 +102,65 @@ export default function OwnerAssetsPage() {
 					</div>
 				</div>
 
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 bg-foreground/[0.02]">
-								<th className="px-4 py-2.5 font-normal">Asset</th>
-								<th className="px-4 py-2.5 font-normal">Status</th>
-								<th className="px-4 py-2.5 font-normal text-right">Raised / Target</th>
-								<th className="px-4 py-2.5 font-normal text-right">Investors</th>
-								<th className="px-4 py-2.5 font-normal text-right">APY</th>
-								<th className="px-4 py-2.5 font-normal text-right">Tenor</th>
-								<th className="px-4 py-2.5 font-normal text-right">Created</th>
-							</tr>
-						</thead>
-						<tbody>
-							{filtered.map((a) => {
-								const pct = Math.round((a.raised / a.target) * 100)
-								return (
-									<tr key={a.id} className="border-t border-border/30 hover:bg-foreground/[0.02] cursor-pointer">
-										<td className="px-4 py-3.5">
-											<div className="text-xs font-medium">{a.name}</div>
-											<div className="text-[10px] text-muted-foreground mt-0.5">{a.category} · {a.region}</div>
-										</td>
-										<td className="px-4 py-3.5">
-											<StatusPill tone={STATUS_TONE[a.status]}>{a.status.replace("_", " ")}</StatusPill>
-										</td>
-										<td className="px-4 py-3.5 text-right">
-											<div className="text-xs tabular-nums font-medium">{fmtUsdShort(a.raised)} / {fmtUsdShort(a.target)}</div>
-											<div className="mt-1 h-1 w-32 ml-auto rounded-full bg-border/40 overflow-hidden">
-												<div className={`h-full ${pct === 100 ? "bg-muted-foreground/40" : "bg-primary"}`} style={{ width: `${pct}%` }} />
-											</div>
-										</td>
-										<td className="px-4 py-3.5 text-right tabular-nums text-xs">{a.investors}</td>
-										<td className="px-4 py-3.5 text-right tabular-nums text-xs">{a.apyTarget.toFixed(1)}%</td>
-										<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{a.tenor}</td>
-										<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{a.created}</td>
-									</tr>
-								)
-							})}
-						</tbody>
-					</table>
-				</div>
+				{loading ? (
+					<div className="p-10 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+						<Loader2 className="size-4 animate-spin" /> Loading…
+					</div>
+				) : assets.length === 0 ? (
+					<EmptyState
+						title="No listings yet"
+						description="Submit your first RWA for AI underwriting."
+						action={
+							<Link href="/owner/assets/new" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-foreground text-background text-xs font-medium">
+								<Plus className="size-3.5" /> List asset
+							</Link>
+						}
+					/>
+				) : (
+					<div className="overflow-x-auto">
+						<table className="w-full text-sm">
+							<thead>
+								<tr className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 bg-foreground/[0.02]">
+									<th className="px-4 py-2.5 font-normal">Asset</th>
+									<th className="px-4 py-2.5 font-normal">Status</th>
+									<th className="px-4 py-2.5 font-normal text-right">Raised / Target</th>
+									<th className="px-4 py-2.5 font-normal text-right">APY</th>
+									<th className="px-4 py-2.5 font-normal text-right">Tenor</th>
+									<th className="px-4 py-2.5 font-normal text-right">Created</th>
+								</tr>
+							</thead>
+							<tbody>
+								{filtered.map((a) => {
+									const target = Number(a.targetRaise ?? 0)
+									const raised = Number(a.currentRaised)
+									const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0
+									return (
+										<tr key={a.id} className="border-t border-border/30 hover:bg-foreground/[0.02]">
+											<td className="px-4 py-3.5">
+												<div className="text-xs font-medium">{a.name}</div>
+												<div className="text-[10px] text-muted-foreground mt-0.5">{a.category} · {a.region ?? "—"}</div>
+											</td>
+											<td className="px-4 py-3.5">
+												<StatusPill tone={STATUS_TONE[a.status]}>{a.status.replace("_", " ")}</StatusPill>
+											</td>
+											<td className="px-4 py-3.5 text-right">
+												<div className="text-xs tabular-nums font-medium">{fmtUsdShort(raised)} / {fmtUsdShort(target)}</div>
+												{target > 0 && (
+													<div className="mt-1 h-1 w-32 ml-auto rounded-full bg-border/40 overflow-hidden">
+														<div className={`h-full ${pct === 100 ? "bg-muted-foreground/40" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+													</div>
+												)}
+											</td>
+											<td className="px-4 py-3.5 text-right tabular-nums text-xs">{Number(a.targetApy ?? 0).toFixed(1)}%</td>
+											<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{a.tenor ?? "—"}</td>
+											<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{new Date(a.createdAt).toLocaleDateString()}</td>
+										</tr>
+									)
+								})}
+							</tbody>
+						</table>
+					</div>
+				)}
 			</Card>
 		</div>
 	)

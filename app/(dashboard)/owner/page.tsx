@@ -1,12 +1,35 @@
 "use client"
 
-import { ArrowRight, Plus } from "lucide-react"
+import { ArrowRight, Loader2, Plus } from "lucide-react"
 import Link from "next/link"
+import { useMemo } from "react"
 import { AreaTrend, Donut } from "@/components/dashboard/charts"
 import { PageHeader } from "@/components/dashboard/page-header"
-import { Card, MetricCard, SectionHeader, StatusPill } from "@/components/dashboard/primitives"
-import { fundraisingTrend, investorBreakdown, ownerAssets, ownerKpis } from "@/lib/mock/owner"
+import { Card, EmptyState, MetricCard, SectionHeader, StatusPill } from "@/components/dashboard/primitives"
 import { useDashboardUser } from "@/components/dashboard/gate"
+import { useFetch } from "@/lib/api/client"
+import { fundraisingTrend, investorBreakdown } from "@/lib/mock/owner"
+
+type OwnerAsset = {
+	id: number
+	slug: string
+	name: string
+	category: string
+	region: string | null
+	status: "draft" | "in_review" | "fundraising" | "live" | "closed"
+	targetRaise: string | null
+	currentRaised: string
+	targetApy: string | null
+	tenor: string | null
+	createdAt: string
+}
+
+type InvestorRow = {
+	holdingId: number
+	amount: string
+	investor: { id: number }
+	asset: { id: number; name: string }
+}
 
 const fmtUsdShort = (n: number) =>
 	n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(0)}K` : `$${n}`
@@ -15,13 +38,29 @@ export default function OwnerOverviewPage() {
 	const user = useDashboardUser()
 	const greeting = user.displayName?.split(" ")[0] ?? "operator"
 
-	const live = ownerAssets.filter((a) => a.status === "live" || a.status === "fundraising")
+	const assetsRes = useFetch<{ ok: true; assets: OwnerAsset[] }>("/api/owner/assets")
+	const investorsRes = useFetch<{ ok: true; investors: InvestorRow[] }>("/api/owner/investors")
+	const assets = assetsRes.data?.assets ?? []
+	const investors = investorsRes.data?.investors ?? []
+
+	const live = useMemo(
+		() => assets.filter((a) => a.status === "live" || a.status === "fundraising"),
+		[assets],
+	)
+
+	const aum = live.reduce((s, a) => s + Number(a.currentRaised), 0)
+	const uniqueInvestors = new Set(investors.map((i) => i.investor.id)).size
+	const totalCommitted = investors.reduce((s, i) => s + Number(i.amount), 0)
+	const liveCount = assets.filter((a) => a.status === "live").length
+	const fundraisingCount = assets.filter((a) => a.status === "fundraising").length
+
+	const loading = assetsRes.loading || investorsRes.loading
 
 	return (
 		<div className="px-4 lg:px-8 py-6 lg:py-10 space-y-8">
 			<PageHeader
 				title={`Hi, ${greeting}`}
-				description="2 fundraises are active, 1 listing is in compliance review, $61.3K in payouts due this month."
+				description={loading ? "Loading…" : `You have ${liveCount} live and ${fundraisingCount} fundraising listings.`}
 				actions={
 					<>
 						<Link href="/owner/payouts" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md border border-border/60 text-xs font-medium hover:bg-card/60">
@@ -35,18 +74,15 @@ export default function OwnerOverviewPage() {
 			/>
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-				<MetricCard label="Assets under mgmt" value={fmtUsdShort(ownerKpis.aum)} change={{ value: "+24.6%", positive: true }} hint="Quarter-over-quarter" />
-				<MetricCard label="Investors" value={String(ownerKpis.investors)} change={{ value: "+128", positive: true }} hint="vs last quarter" />
-				<MetricCard label="Live assets" value={String(ownerKpis.liveAssets)} hint={`${ownerKpis.fundraising} fundraising`} />
-				<MetricCard label="Payout next 30d" value="$61.3K" hint="Across 823 wallets" />
+				<MetricCard label="Assets under mgmt" value={fmtUsdShort(aum)} hint={loading ? "Loading…" : "Live + fundraising"} />
+				<MetricCard label="Investors" value={String(uniqueInvestors)} hint={`${fmtUsdShort(totalCommitted)} committed`} />
+				<MetricCard label="Live assets" value={String(liveCount)} hint={`${fundraisingCount} fundraising`} />
+				<MetricCard label="Total listings" value={String(assets.length)} hint="All time" />
 			</div>
 
 			<div className="grid lg:grid-cols-3 gap-4">
 				<Card className="lg:col-span-2">
-					<SectionHeader
-						title="Fundraising velocity"
-						description="Capital committed per month across all assets"
-					/>
+					<SectionHeader title="Fundraising velocity" description="Capital committed per month across all assets" />
 					<AreaTrend data={fundraisingTrend} height={260} />
 				</Card>
 				<Card>
@@ -79,45 +115,64 @@ export default function OwnerOverviewPage() {
 						View all <ArrowRight className="size-3" />
 					</Link>
 				</div>
-				<div className="overflow-x-auto border-t border-border/40">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 bg-foreground/[0.02]">
-								<th className="px-4 py-2.5 font-normal">Asset</th>
-								<th className="px-4 py-2.5 font-normal">Status</th>
-								<th className="px-4 py-2.5 font-normal text-right">Raised / Target</th>
-								<th className="px-4 py-2.5 font-normal text-right">Investors</th>
-								<th className="px-4 py-2.5 font-normal text-right">Target APY</th>
-								<th className="px-4 py-2.5 font-normal text-right">Next payout</th>
-							</tr>
-						</thead>
-						<tbody>
-							{live.map((a) => {
-								const pct = Math.round((a.raised / a.target) * 100)
-								return (
-									<tr key={a.id} className="border-t border-border/30 hover:bg-foreground/[0.02]">
-										<td className="px-4 py-3.5">
-											<div className="text-xs font-medium">{a.name}</div>
-											<div className="text-[10px] text-muted-foreground mt-0.5">{a.category} · {a.region}</div>
-										</td>
-										<td className="px-4 py-3.5">
-											<StatusPill tone={a.status === "live" ? "success" : "info"}>{a.status}</StatusPill>
-										</td>
-										<td className="px-4 py-3.5 text-right">
-											<div className="text-xs tabular-nums font-medium">{fmtUsdShort(a.raised)} / {fmtUsdShort(a.target)}</div>
-											<div className="mt-1 h-1 w-32 ml-auto rounded-full bg-border/40 overflow-hidden">
-												<div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-											</div>
-										</td>
-										<td className="px-4 py-3.5 text-right tabular-nums text-xs">{a.investors}</td>
-										<td className="px-4 py-3.5 text-right tabular-nums text-xs">{a.apyTarget.toFixed(1)}%</td>
-										<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{a.nextPayout ?? "—"}</td>
-									</tr>
-								)
-							})}
-						</tbody>
-					</table>
-				</div>
+
+				{loading ? (
+					<div className="p-10 flex items-center justify-center gap-2 text-sm text-muted-foreground border-t border-border/40">
+						<Loader2 className="size-4 animate-spin" /> Loading…
+					</div>
+				) : live.length === 0 ? (
+					<EmptyState
+						title="No active listings"
+						description="Submit your first RWA for AI underwriting."
+						action={
+							<Link href="/owner/assets/new" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-foreground text-background text-xs font-medium">
+								<Plus className="size-3.5" /> List asset
+							</Link>
+						}
+					/>
+				) : (
+					<div className="overflow-x-auto border-t border-border/40">
+						<table className="w-full text-sm">
+							<thead>
+								<tr className="text-left text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 bg-foreground/[0.02]">
+									<th className="px-4 py-2.5 font-normal">Asset</th>
+									<th className="px-4 py-2.5 font-normal">Status</th>
+									<th className="px-4 py-2.5 font-normal text-right">Raised / Target</th>
+									<th className="px-4 py-2.5 font-normal text-right">Target APY</th>
+									<th className="px-4 py-2.5 font-normal text-right">Tenor</th>
+								</tr>
+							</thead>
+							<tbody>
+								{live.map((a) => {
+									const target = Number(a.targetRaise ?? 0)
+									const raised = Number(a.currentRaised)
+									const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0
+									return (
+										<tr key={a.id} className="border-t border-border/30 hover:bg-foreground/[0.02]">
+											<td className="px-4 py-3.5">
+												<div className="text-xs font-medium">{a.name}</div>
+												<div className="text-[10px] text-muted-foreground mt-0.5">{a.category} · {a.region ?? "—"}</div>
+											</td>
+											<td className="px-4 py-3.5">
+												<StatusPill tone={a.status === "live" ? "success" : "info"}>{a.status}</StatusPill>
+											</td>
+											<td className="px-4 py-3.5 text-right">
+												<div className="text-xs tabular-nums font-medium">{fmtUsdShort(raised)} / {fmtUsdShort(target)}</div>
+												{target > 0 && (
+													<div className="mt-1 h-1 w-32 ml-auto rounded-full bg-border/40 overflow-hidden">
+														<div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+													</div>
+												)}
+											</td>
+											<td className="px-4 py-3.5 text-right tabular-nums text-xs">{Number(a.targetApy ?? 0).toFixed(1)}%</td>
+											<td className="px-4 py-3.5 text-right text-xs text-muted-foreground">{a.tenor ?? "—"}</td>
+										</tr>
+									)
+								})}
+							</tbody>
+						</table>
+					</div>
+				)}
 			</Card>
 		</div>
 	)

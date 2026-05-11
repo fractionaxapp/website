@@ -4,7 +4,7 @@ import { ArrowRight, Check, Loader2, Sparkles, X } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { activateGoalFromPrompt } from "@/lib/state/goal"
+import { useApi } from "@/lib/api/client"
 import { altGoals, exampleGoal, goalSteps, type AgentStep } from "@/lib/mock/goal-flow"
 
 type Phase = "input" | "running" | "complete"
@@ -19,10 +19,12 @@ const TONE_CLASS: Record<AgentStep["tone"], { dot: string; bg: string; text: str
 
 export default function GoalPage() {
 	const router = useRouter()
+	const { fetcher } = useApi()
 	const [phase, setPhase] = useState<Phase>("input")
 	const [prompt, setPrompt] = useState("")
 	const [currentStep, setCurrentStep] = useState(0)
 	const [completedSteps, setCompletedSteps] = useState<string[]>([])
+	const [submitError, setSubmitError] = useState<string | null>(null)
 
 	useEffect(() => {
 		if (phase !== "running") return
@@ -38,13 +40,26 @@ export default function GoalPage() {
 		return () => clearTimeout(timer)
 	}, [phase, currentStep])
 
-	function start(input: string) {
+	async function start(input: string) {
 		const finalPrompt = input.trim().length > 0 ? input.trim() : exampleGoal
 		setPrompt(finalPrompt)
-		activateGoalFromPrompt(finalPrompt)
+		setSubmitError(null)
 		setCurrentStep(0)
 		setCompletedSteps([])
 		setPhase("running")
+
+		try {
+			const res = await fetcher("/api/me/goals", {
+				method: "POST",
+				body: JSON.stringify({ prompt: finalPrompt }),
+			})
+			const data = await res.json()
+			if (!res.ok || !data.ok) {
+				throw new Error(data?.error ?? "Failed to activate goal")
+			}
+		} catch (err) {
+			setSubmitError((err as Error).message)
+		}
 	}
 
 	function reset() {
@@ -194,6 +209,11 @@ export default function GoalPage() {
 										New goal
 									</button>
 								</div>
+								{submitError && (
+									<div className="mt-4 text-xs text-destructive">
+										Couldn&rsquo;t save your goal: {submitError}
+									</div>
+								)}
 							</div>
 						</div>
 					</motion.div>
